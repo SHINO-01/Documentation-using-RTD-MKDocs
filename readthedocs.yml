@@ -5,8 +5,7 @@ build:
   image: "latest"
   os: "ubuntu-24.04"
   tools:
-    python:
-      version: 3.9  # Change to a stable version (e.g., 3.9)
+    python: "3.9"  # Corrected: specify Python version as a string
   pre_build:
     # Run your script before the build
     - python3 scripts/generate_TOC.py  # Ensure this script exists and is working
@@ -17,8 +16,3 @@ mkdocs:
 python:
   install:
     - requirements: requirements.txt  # Make sure all dependencies are listed here
-
-# Optional: Uncomment if you want to ensure reproducible builds
-# python:
-#    install:
-#    - requirements: docs/requirements.txt
