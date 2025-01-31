@@ -1,17 +1,28 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
 version: 2
 
 # Set the OS, Python version, and other tools you might need
 build:
-  os: "ubuntu-24.04"
+  os: ubuntu-24.04
   tools:
-    python: "3.9"  # Corrected: specify Python version as a string
-  pre_build:
-    # Run your script before the build
-    - python3 scripts/generate_TOC.py  # Ensure this script exists and is working
+    python: "3.13"
+  jobs:
+    pre_build:
+      - python3 scripts/generate_TOC.py
 
+# Build documentation with Mkdocs
 mkdocs:
-  configuration: mkdocs.yml  # Path to your mkdocs.yml
-
+   configuration: mkdocs.yml
 python:
   install:
-    - requirements: requirements.txt  # Make sure all dependencies are listed here
+    - requirements: requirements.txt
+# Optionally, but recommended,
+# declare the Python requirements required to build your documentation
+# See https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
+# python:
+#    install:
+#    - requirements: docs/requirements.txt
+          
