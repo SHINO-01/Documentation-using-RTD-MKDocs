@@ -1,48 +1,89 @@
-name: Update TOC on Commit
+name: "Update TOC & Bump Version"
 
 on:
   push:
     branches:
-      - main  # Or whichever branch you want to run on
+      - main   # You can change this to whichever branch triggers the workflow
 
-# Give the Actions bot permission to push changes back to the repo
 permissions:
-  contents: write
+  contents: write  # Must allow write for the Action to push changes
 
 jobs:
-  update-toc:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      # 1. Check out repository (with credentials so we can push)
+      - name: Check out repository
         uses: actions/checkout@v3
         with:
-          # Ensures credentials are kept so you can push changes
           persist-credentials: true
 
+      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13'  # Use whatever Python version you need
+          python-version: "3.13"
 
+      # 3. Install dependencies (adjust if you have any)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt  # If you have one
+          pip install -r requirements.txt || true  # If you have a requirements file
 
+      # 4. Run your script to generate the TOC
       - name: Generate Table of Contents
         run: |
           python scripts/generate_TOC.py
 
-      - name: Commit changes
+      # 5. Bump version & create new branch
+      - name: Bump version and create new branch
+        id: bump_version
+        run: |
+          # 5a. Read the current version from .version
+          CURRENT_VERSION="$(cat .version)"
+          
+          # 5b. Parse Major and Minor
+          MAJOR="${CURRENT_VERSION%%.*}"
+          MINOR="${CURRENT_VERSION##*.}"
+          
+          # 5c. Increment version
+          #    If minor < 10 => just increment minor
+          #    else reset minor, increment major
+          if [ "$MINOR" -lt 10 ]; then
+            MINOR=$((MINOR + 1))
+          else
+            MINOR=1
+            MAJOR=$((MAJOR + 1))
+          fi
+          
+          NEW_VERSION="${MAJOR}.${MINOR}"
+          
+          echo "Old version: $CURRENT_VERSION"
+          echo "New version: $NEW_VERSION"
+          
+          # 5d. Write the new version back to .version
+          echo "${NEW_VERSION}" > .version
+          
+          # 5e. Create a new branch from main => v<MAJOR>.<MINOR>
+          NEW_BRANCH="v${NEW_VERSION}"
+          
+          # Make sure we're up to date with main
+          git fetch origin main
+          git checkout main
+          git merge origin/main
+          
+          # Create and switch to the new branch
+          git checkout -b "${NEW_BRANCH}" || git checkout "${NEW_BRANCH}"
+
+      # 6. Commit & push changes (index.md and .version)
+      - name: Commit and push changes
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add docs/index.md
-          # The "|| echo" prevents an error if there's nothing to commit
-          git commit -m "Update Table of Contents" || echo "No changes to commit"
-
-      - name: Push changes
-        run: |
-          # Now that we have write permission, this should succeed
-          git push
+          git add docs/index.md .version
+          
+          # Only commit if there are changes (avoids error if no changes)
+          git commit -m "Auto-update Table of Contents and bump version" || echo "No changes to commit."
+          
+          # Push the newly created branch
+          git push --set-upstream origin HEAD
