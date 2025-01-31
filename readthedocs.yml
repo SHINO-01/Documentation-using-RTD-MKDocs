@@ -9,12 +9,11 @@ python:
   install:
     - requirements: requirements.txt
 
-sphinx:
-  builder: html
-
 mkdocs:
   configuration: mkdocs.yaml
 
 # Run the script to generate index.md before building
-pre_build:
-  - python scripts/generate_toc.py
+build:
+  jobs:
+    pre_build:
+      - python scripts/generate_toc.py
