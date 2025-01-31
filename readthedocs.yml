@@ -8,6 +8,6 @@ python:
 mkdocs:
   configuration: mkdocs.yaml
 
-# Run the script to generate index.md before building
-commands:
-  - python scripts/generate_TOC.py
+build:
+  commands:
+    - python scripts/generate_TOC.py
