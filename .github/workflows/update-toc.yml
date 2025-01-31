@@ -3,7 +3,7 @@ name: "Update TOC & Bump Version"
 on:
   push:
     branches:
-      - main   # or whichever branch you want to trigger on
+      - main
 
 permissions:
   contents: write
@@ -12,37 +12,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. Check out repository (with credentials so we can push)
+      # STEP 1: Check out repository
       - name: Check out repository
         uses: actions/checkout@v3
         with:
           persist-credentials: true
 
-      # 2. Set up Python
+      # STEP 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.13"
 
-      # 3. Install dependencies (adjust for your project)
+      # STEP 3: Install dependencies (optional - adjust for your project)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
 
-      # 4. Run your script to generate the TOC
-      - name: Generate Table of Contents
-        run: |
-          python scripts/generate_TOC.py
-
-      # 5. Bump version (in .version) and figure out new branch name
-      - name: Bump version
+      # STEP 4: Fetch latest main and determine new version
+      - name: Determine next version
         id: bump_version
         run: |
+          # Ensure main is up-to-date
+          git fetch origin
+          git checkout main
+          git merge origin/main
+
+          # Read current version from .version, but DO NOT write changes yet
           CURRENT_VERSION="$(cat .version)"
           MAJOR="${CURRENT_VERSION%%.*}"
           MINOR="${CURRENT_VERSION##*.}"
 
+          # Bump logic: if MINOR < 10 then +1, else reset MINOR, +1 to MAJOR
           if [ "$MINOR" -lt 10 ]; then
             MINOR=$((MINOR + 1))
           else
@@ -51,41 +53,55 @@ jobs:
           fi
 
           NEW_VERSION="${MAJOR}.${MINOR}"
-          echo "${NEW_VERSION}" > .version
+
+          echo "current_version=${CURRENT_VERSION}"
+          echo "new_version=${NEW_VERSION}"
           echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
 
-      # 6. Create or switch to the new branch (rebase if it already exists)
-      - name: Create or switch to new branch
+      # STEP 5: Create or switch to the version branch
+      - name: Create or switch to version branch
+        id: create_branch
         run: |
           NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
           NEW_BRANCH="v${NEW_VERSION}"
 
-          # Make sure we're up to date with 'origin/main'
-          git fetch origin
-          git checkout main
-          git merge origin/main
-
-          # Check if remote branch already exists
+          # Check if the branch exists on remote
           if [ "$(git ls-remote --heads origin $NEW_BRANCH | wc -l)" -eq 1 ]; then
-            echo "Branch '$NEW_BRANCH' exists on remote. Checking out and rebasing..."
+            echo "Branch '$NEW_BRANCH' exists. Checking out & rebasing..."
             git checkout $NEW_BRANCH
             git pull --rebase origin $NEW_BRANCH
           else
-            echo "Branch '$NEW_BRANCH' does NOT exist. Creating it from 'main'..."
+            echo "Branch '$NEW_BRANCH' does NOT exist. Creating from main..."
+            # Make sure main is up to date
+            git checkout main
+            git merge origin/main
             git checkout -b "$NEW_BRANCH"
           fi
 
-      # 7. Commit & push changes
+          # Export so next steps can see it
+          echo "new_branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
+
+      # STEP 6: Now that we are on the new branch, update .version + generate TOC
+      - name: Update .version and generate TOC
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          echo "${NEW_VERSION}" > .version
+
+          # Run your TOC script (this modifies docs/index.md)
+          python scripts/generate_TOC.py
+
+      # STEP 7: Commit and push changes
       - name: Commit and push changes
         run: |
+          NEW_BRANCH="${{ steps.create_branch.outputs.new_branch }}"
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
           # Stage updated files
           git add .version docs/index.md
 
-          # Commit only if there are changes
-          git commit -m "Auto-update TOC and bump version" || echo "No changes to commit."
+          # Only commit if changes were made
+          git commit -m "Auto-update TOC and bump version to ${NEW_BRANCH}" || echo "No changes to commit."
 
-          # Push to the new/current branch (no force push)
+          # Push to the new branch (no force)
           git push origin HEAD
