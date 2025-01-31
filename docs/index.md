@@ -11,7 +11,5 @@
 - [Overview](project-overview/overview.md)
 - [Features](project-overview/features.md)
 - [Project_Goal](project-overview/project_goal.md)
-- [Testfile02](test-directory/testfile02.md)
-- [Testfile01](test-directory/testfile01.md)
 - [Introduction](getting-started/Introduction.md)
 - [Background](getting-started/background.md)
