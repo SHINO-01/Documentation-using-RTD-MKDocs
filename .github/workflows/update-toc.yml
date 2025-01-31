@@ -1,0 +1,42 @@
+name: Update TOC on Commit
+
+on:
+  push:
+    branches:
+      - main  # or the branch you want this to run on
+
+jobs:
+  update-toc:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'  # Match this to your required Python version
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Run the TOC generation script
+      - name: Generate Table of Contents
+        run: |
+          python scripts/generate_TOC.py
+
+      # Step 5: Commit and push changes to the repository
+      - name: Commit and push changes
+        run: |
+          git config --local user.name "SHINO-01"
+          git config --local user.email "sakifhussain33@gmail.com"
+          git add docs/index.md
+          git commit -m "Update Table of Contents"
+          git push
+
