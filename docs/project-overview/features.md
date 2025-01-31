@@ -27,7 +27,7 @@ The `cron_project` is equipped with a wide range of features designed to handle 
 
 The following diagram provides a visual overview of the project's key functionalities and workflow:
 
-![Workflow Diagram](assets/img/fullFlow2.svg)
+![Workflow Diagram](../assets/img/fullFlow2.svg)
 
 
 This diagram illustrates how various components—such as data import, validation, visualization, and export—integrate into the overall system.
