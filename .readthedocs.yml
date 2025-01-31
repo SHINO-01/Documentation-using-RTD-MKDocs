@@ -7,7 +7,7 @@ version: 2
 # Set the OS, Python version, and other tools you might need
 
 build:
-  image: "latest"
+  image: latest
   os: ubuntu-24.04
   tools:
     python:
@@ -15,9 +15,6 @@ build:
   pre_build:
     # Run your script before the build
     - python3 scripts/generate_TOC.py
-
-mkdocs:
-  configuration: mkdocs.yml
 
 # Build documentation with Mkdocs
 mkdocs:
