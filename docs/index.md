@@ -1,7 +1,15 @@
 # Welcome to the Documentation
-
-This documentation is automatically generated using MkDocs.
-
 ## Table of Contents
-
-The sections below are automatically generated based on the documentation structure.
+- [Running_Cron_Jobs](operations/running_cron_jobs.md)
+- [Overview](project-overview/overview.md)
+- [Features](project-overview/features.md)
+- [Project_Goal](project-overview/project_goal.md)
+- [Setup](setup-and-installation/setup.md)
+- [Prerequisites](setup-and-installation/prerequisites.md)
+- [Postgresql](setup-and-installation/postgresql.md)
+- [Technologies](technical-details/technologies.md)
+- [Dependencies](technical-details/dependencies.md)
+- [Project_Database](project-architecture/project_database.md)
+- [Project_Structure](project-architecture/project_structure.md)
+- [Background](getting-started/background.md)
+- [Introduction](getting-started/Introduction.md)
