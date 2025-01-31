@@ -3,10 +3,10 @@ name: "Update TOC & Bump Version"
 on:
   push:
     branches:
-      - main   # You can change this to whichever branch triggers the workflow
+      - main   # or whichever branch you want to trigger on
 
 permissions:
-  contents: write  # Must allow write for the Action to push changes
+  contents: write
 
 jobs:
   build:
@@ -24,66 +24,68 @@ jobs:
         with:
           python-version: "3.13"
 
-      # 3. Install dependencies (adjust if you have any)
+      # 3. Install dependencies (adjust for your project)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true  # If you have a requirements file
+          pip install -r requirements.txt || true
 
       # 4. Run your script to generate the TOC
       - name: Generate Table of Contents
         run: |
           python scripts/generate_TOC.py
 
-      # 5. Bump version & create new branch
-      - name: Bump version and create new branch
+      # 5. Bump version (in .version) and figure out new branch name
+      - name: Bump version
         id: bump_version
         run: |
-          # 5a. Read the current version from .version
           CURRENT_VERSION="$(cat .version)"
-          
-          # 5b. Parse Major and Minor
           MAJOR="${CURRENT_VERSION%%.*}"
           MINOR="${CURRENT_VERSION##*.}"
-          
-          # 5c. Increment version
-          #    If minor < 10 => just increment minor
-          #    else reset minor, increment major
+
           if [ "$MINOR" -lt 10 ]; then
             MINOR=$((MINOR + 1))
           else
             MINOR=1
             MAJOR=$((MAJOR + 1))
           fi
-          
+
           NEW_VERSION="${MAJOR}.${MINOR}"
-          
-          echo "Old version: $CURRENT_VERSION"
-          echo "New version: $NEW_VERSION"
-          
-          # 5d. Write the new version back to .version
           echo "${NEW_VERSION}" > .version
-          
-          # 5e. Create a new branch from main => v<MAJOR>.<MINOR>
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+
+      # 6. Create or switch to the new branch (rebase if it already exists)
+      - name: Create or switch to new branch
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
           NEW_BRANCH="v${NEW_VERSION}"
-          
-          # Make sure we're up to date with main
-          git fetch origin main
+
+          # Make sure we're up to date with 'origin/main'
+          git fetch origin
           git checkout main
           git merge origin/main
-          
-          # Create and switch to the new branch
-          git checkout -b "${NEW_BRANCH}" || git checkout "${NEW_BRANCH}"
 
-      # 6. Commit & push changes (index.md and .version)
+          # Check if remote branch already exists
+          if [ "$(git ls-remote --heads origin $NEW_BRANCH | wc -l)" -eq 1 ]; then
+            echo "Branch '$NEW_BRANCH' exists on remote. Checking out and rebasing..."
+            git checkout $NEW_BRANCH
+            git pull --rebase origin $NEW_BRANCH
+          else
+            echo "Branch '$NEW_BRANCH' does NOT exist. Creating it from 'main'..."
+            git checkout -b "$NEW_BRANCH"
+          fi
+
+      # 7. Commit & push changes
       - name: Commit and push changes
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add docs/index.md .version
-          
-          # Only commit if there are changes (avoids error if no changes)
-          git commit -m "Auto-update Table of Contents and bump version" || echo "No changes to commit."
-          
-          # Push the newly created branch
-          git push --set-upstream origin HEAD
+
+          # Stage updated files
+          git add .version docs/index.md
+
+          # Commit only if there are changes
+          git commit -m "Auto-update TOC and bump version" || echo "No changes to commit."
+
+          # Push to the new/current branch (no force push)
+          git push origin HEAD
