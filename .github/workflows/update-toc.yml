@@ -3,24 +3,46 @@ name: Update TOC on Commit
 on:
   push:
     branches:
-      - main
+      - main  # Or whichever branch you want to run on
+
+# Give the Actions bot permission to push changes back to the repo
+permissions:
+  contents: write
 
 jobs:
   update-toc:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          # Ensures credentials are kept so you can push changes
+          persist-credentials: true
 
-      - name: Update Table of Contents
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'  # Use whatever Python version you need
+
+      - name: Install dependencies
         run: |
-          # Your commands to update TOC
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Update Table of Contents"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # If you have one
+
+      - name: Generate Table of Contents
+        run: |
+          python scripts/generate_TOC.py
+
+      - name: Commit changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add docs/index.md
+          # The "|| echo" prevents an error if there's nothing to commit
+          git commit -m "Update Table of Contents" || echo "No changes to commit"
+
+      - name: Push changes
+        run: |
+          # Now that we have write permission, this should succeed
           git push
