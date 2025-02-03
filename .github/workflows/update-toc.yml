@@ -1,4 +1,4 @@
-name: "Update TOC & Bump Version"
+name: "Update TOC, Bump Version, Update 'latest', and Clean Old Branches"
 
 on:
   push:
@@ -27,45 +27,33 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
 
-      # Step 1: Determine next version (without editing .version yet)
+      # Step 1: Determine next version
       - name: Determine next version
         id: bump_version
         run: |
-          # Ensure main is up-to-date
           git fetch origin
           git checkout main
           git merge origin/main
 
           CURRENT_VERSION="$(cat .version)"
-          MAJOR="${CURRENT_VERSION%%.*}"
-          MINOR="${CURRENT_VERSION##*.}"
+          IFS='.' read -r MAJOR MINOR HOTFIX <<< "$CURRENT_VERSION"
 
-          # Bump logic: if MINOR < 10 then +1, else reset to 1 and MAJOR++
-          if [ "$MINOR" -lt 10 ]; then
-            MINOR=$((MINOR + 1))
-          else
-            MINOR=1
-            MAJOR=$((MAJOR + 1))
-          fi
+          HOTFIX=$((HOTFIX + 1))  # Bump hotfix (Z) by default
 
-          NEW_VERSION="${MAJOR}.${MINOR}"
+          NEW_VERSION="${MAJOR}.${MINOR}.${HOTFIX}"
           echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
 
-      # Step 2: Create or switch to new branch (vX.Y)
+      # Step 2: Create or switch to version branch (vX.Y.Z)
       - name: Create or switch to version branch
         id: create_branch
         run: |
           NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
           NEW_BRANCH="v${NEW_VERSION}"
 
-          # Check if branch exists on remote
           if [ "$(git ls-remote --heads origin $NEW_BRANCH | wc -l)" -eq 1 ]; then
-            echo "Branch '$NEW_BRANCH' exists. Checking out & rebasing..."
             git checkout $NEW_BRANCH
             git pull --rebase origin $NEW_BRANCH
           else
-            echo "Branch '$NEW_BRANCH' does NOT exist. Creating from main..."
-            # Make sure main is up to date
             git checkout main
             git merge origin/main
             git checkout -b "$NEW_BRANCH"
@@ -73,14 +61,14 @@ jobs:
 
           echo "new_branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
 
-      # Step 3: Now on vX.Y branch, update .version & run TOC script
+      # Step 3: Update version file and generate TOC
       - name: Update version file and generate TOC
         run: |
           NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
           echo "$NEW_VERSION" > .version
           python scripts/generate_TOC.py
 
-      # Step 4: Commit & push changes to vX.Y
+      # Step 4: Commit & push changes to vX.Y.Z
       - name: Commit and push to version branch
         run: |
           git config user.name "GitHub Actions"
@@ -90,16 +78,37 @@ jobs:
           git commit -m "Auto-update: Bump version to ${{ steps.bump_version.outputs.new_version }}" || echo "No changes to commit."
           git push origin HEAD
 
-      # Step 5: (Optional) Merge vX.Y back into main so .version is up to date there
+      # Step 5: Merge vX.Y.Z back to main [skip ci]
       - name: Merge version branch back to main [skip ci]
         run: |
           NEW_BRANCH="${{ steps.create_branch.outputs.new_branch }}"
           git checkout main
           git pull origin main
-
-          # Merge the version branch into main
           git merge --no-ff --no-edit "$NEW_BRANCH"
-
-          # Commit message contains [skip ci] to avoid retriggering
           git commit --allow-empty -m "Merging branch $NEW_BRANCH into main [skip ci]" || echo "No changes to commit."
           git push origin main
+
+      # 🚀 Step 6: Update 'latest' Branch for Read the Docs
+      - name: Update 'latest' Branch
+        run: |
+          git checkout "${{ steps.create_branch.outputs.new_branch }}"
+          git branch -f latest
+          git push origin latest --force
+
+      # 🧹 Step 7: Auto-Clean Old Version Branches
+      - name: Cleanup Old Version Branches
+        run: |
+          git fetch --all
+
+          # List all version branches, sort by creation date, and keep the latest 5
+          BRANCHES_TO_DELETE=$(git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/remotes/origin/v* | sed 's|origin/||' | tail -n +6)
+
+          # Ensure protected branches are NOT deleted
+          PROTECTED_BRANCHES=("main" "latest")
+
+          for BRANCH in $BRANCHES_TO_DELETE; do
+            if [[ ! " ${PROTECTED_BRANCHES[@]} " =~ " ${BRANCH} " ]]; then
+              echo "Deleting old branch: $BRANCH"
+              git push origin --delete "$BRANCH" || echo "Failed to delete $BRANCH"
+            fi
+          done
