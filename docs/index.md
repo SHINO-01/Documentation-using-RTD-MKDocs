@@ -7,6 +7,7 @@
 - [Test01](test-dir-01/test01.md)
 - [Running_Cron_Jobs](operations/running_cron_jobs.md)
 - [Technologies](technical-details/technologies.md)
+- [Test07](technical-details/test07.md)
 - [Dependencies](technical-details/dependencies.md)
 - [Project_Database](project-architecture/project_database.md)
 - [Project_Structure](project-architecture/project_structure.md)
