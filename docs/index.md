@@ -1,6 +1,7 @@
 # Welcome to the Documentation
 ## Table of Contents
 - [Test03](test-dir-03/test03.md)
+- [Test10](setup-and-installation/test10.md)
 - [Postgresql](setup-and-installation/postgresql.md)
 - [Prerequisites](setup-and-installation/prerequisites.md)
 - [Setup](setup-and-installation/setup.md)
