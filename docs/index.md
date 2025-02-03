@@ -14,5 +14,6 @@
 - [Features](project-overview/features.md)
 - [Project_Goal](project-overview/project_goal.md)
 - [Test02](test-dir-02/test02.md)
+- [Test05](test-dir-04/test05.md)
 - [Introduction](getting-started/Introduction.md)
 - [Background](getting-started/background.md)
