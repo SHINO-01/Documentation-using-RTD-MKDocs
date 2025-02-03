@@ -4,17 +4,6 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Enables manual triggering with custom inputs
-    inputs:
-      bump_type:
-        description: "Version bump type"
-        required: false
-        default: "hotfix"
-        type: choice
-        options:
-          - major
-          - minor
-          - hotfix
 
 permissions:
   contents: write
@@ -49,8 +38,12 @@ jobs:
           CURRENT_VERSION="$(cat .version)"
           IFS='.' read -r MAJOR MINOR HOTFIX <<< "$CURRENT_VERSION"
 
-          # Determine bump type: defaults to 'hotfix' if not specified
-          BUMP_TYPE="${{ github.event.inputs.bump_type || 'hotfix' }}"
+          # Read bump type from the .bump_type file, default to hotfix if missing
+          if [ -f ".bump_type" ]; then
+            BUMP_TYPE=$(cat .bump_type)
+          else
+            BUMP_TYPE="hotfix"
+          fi
 
           case "$BUMP_TYPE" in
             major)
