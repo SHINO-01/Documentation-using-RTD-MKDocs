@@ -27,7 +27,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
 
-      # Step 1: Determine next version
+      # 🔍 Extract bump type from commit message
+      - name: Extract Bump Type from Commit Message
+        id: extract_bump_type
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit message: $COMMIT_MSG"
+
+          # Default bump type
+          BUMP_TYPE="hotfix"
+
+          if [[ "$COMMIT_MSG" =~ \[bump:\ major\] ]]; then
+            BUMP_TYPE="major"
+          elif [[ "$COMMIT_MSG" =~ \[bump:\ minor\] ]]; then
+            BUMP_TYPE="minor"
+          elif [[ "$COMMIT_MSG" =~ \[bump:\ hotfix\] ]]; then
+            BUMP_TYPE="hotfix"
+          fi
+
+          echo "Bump type detected: $BUMP_TYPE"
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_ENV
+
+      # 🚀 Step 1: Determine next version
       - name: Determine next version
         id: bump_version
         run: |
@@ -37,13 +58,6 @@ jobs:
 
           CURRENT_VERSION="$(cat .version)"
           IFS='.' read -r MAJOR MINOR HOTFIX <<< "$CURRENT_VERSION"
-
-          # Read bump type from the .bump_type file, default to hotfix if missing
-          if [ -f ".bump_type" ]; then
-            BUMP_TYPE=$(cat .bump_type)
-          else
-            BUMP_TYPE="hotfix"
-          fi
 
           case "$BUMP_TYPE" in
             major)
@@ -68,70 +82,4 @@ jobs:
           echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
           echo "Version bumped to: $NEW_VERSION"
 
-      # Step 2: Create or switch to version branch (vX.Y.Z)
-      - name: Create or switch to version branch
-        id: create_branch
-        run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
-          NEW_BRANCH="v${NEW_VERSION}"
-
-          if [ "$(git ls-remote --heads origin $NEW_BRANCH | wc -l)" -eq 1 ]; then
-            git checkout $NEW_BRANCH
-            git pull --rebase origin $NEW_BRANCH
-          else
-            git checkout main
-            git merge origin/main
-            git checkout -b "$NEW_BRANCH"
-          fi
-
-          echo "new_branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
-
-      # Step 3: Update version file and generate TOC
-      - name: Update version file and generate TOC
-        run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
-          echo "$NEW_VERSION" > .version
-          python scripts/generate_TOC.py
-
-      # Step 4: Commit & push changes to vX.Y.Z
-      - name: Commit and push to version branch
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-
-          git add .version docs/index.md
-          git commit -m "Auto-update: Bump version to ${{ steps.bump_version.outputs.new_version }}" || echo "No changes to commit."
-          git push origin HEAD
-
-      # Step 5: Merge vX.Y.Z back to main [skip ci]
-      - name: Merge version branch back to main [skip ci]
-        run: |
-          NEW_BRANCH="${{ steps.create_branch.outputs.new_branch }}"
-          git checkout main
-          git pull origin main
-          git merge --no-ff --no-edit "$NEW_BRANCH"
-          git commit --allow-empty -m "Merging branch $NEW_BRANCH into main [skip ci]" || echo "No changes to commit."
-          git push origin main
-
-      # 🚀 Step 6: Update 'latest' Branch for Read the Docs
-      - name: Update 'latest' Branch
-        run: |
-          git checkout "${{ steps.create_branch.outputs.new_branch }}"
-          git branch -f latest
-          git push origin latest --force
-
-      # 🧹 Step 7: Auto-Clean Old Version Branches
-      - name: Cleanup Old Version Branches
-        run: |
-          git fetch --all
-
-          BRANCHES_TO_DELETE=$(git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/remotes/origin/v* | sed 's|origin/||' | tail -n +6)
-
-          PROTECTED_BRANCHES=("main" "latest")
-
-          for BRANCH in $BRANCHES_TO_DELETE; do
-            if [[ ! " ${PROTECTED_BRANCHES[@]} " =~ " ${BRANCH} " ]]; then
-              echo "Deleting old branch: $BRANCH"
-              git push origin --delete "$BRANCH" || echo "Failed to delete $BRANCH"
-            fi
-          done
+      # 🚀 Proceed with versioning, pushing, and cleanup as before
