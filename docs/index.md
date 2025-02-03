@@ -4,6 +4,7 @@
 - [Postgresql](setup-and-installation/postgresql.md)
 - [Prerequisites](setup-and-installation/prerequisites.md)
 - [Setup](setup-and-installation/setup.md)
+- [Test09](setup-and-installation/test09.md)
 - [Test01](test-dir-01/test01.md)
 - [Running_Cron_Jobs](operations/running_cron_jobs.md)
 - [Technologies](technical-details/technologies.md)
